@@ -1,9 +1,9 @@
 from twisted.internet.protocol import DatagramProtocol
 from twisted.internet import reactor
-from ast import literal_eval
 import pyaudio
 import wave
 import time
+import pickle
 
 # PyAudio configuration
 SIZE_PACKAGE = 1024
@@ -15,7 +15,7 @@ FORMAT = pyaudio.paInt16
 CHUNK_COUNT = 0
 p = pyaudio.PyAudio()
 stream = p.open(format=8,
-                channels=2,
+                channels=1,
                 rate=44100,
                 output=True)
 
@@ -37,12 +37,13 @@ class MulticastPingPong(DatagramProtocol):
     def datagramReceived(self, datagram, address):
         #print "Datagram %s received from %s" % (repr(datagram), repr(address))
         if datagram == "Server: Ping":
-            #self.transport.write("Server: Pong", address)
             print "Joined multicast group sucessfully at 228.0.0.5 "
         else:
-            #print "data received {}".format(type(datagram))
-            #print "Playing  chunk {}".format(self.CHUNK_COUNT)
-            stream.write(datagram)
+            count, stream_data = pickle.loads(datagram)
+            print "data received {}".format(type(stream_data))
+            print "Playing  chunk {}".format(count)
+            
+            stream.write(stream_data)
             self.CHUNK_COUNT += 1
             
 

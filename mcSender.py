@@ -4,6 +4,7 @@ from ast import literal_eval
 import pyaudio
 import wave
 import time
+import pickle
 
 # PyAudio configuration
 SIZE_PACKAGE = 1024
@@ -12,8 +13,8 @@ CHANNELS = 1
 RATE = 10240
 INPUT = True
 FORMAT = pyaudio.paInt16
-#AUDIO_FILE = "test.wav"
-AUDIO_FILE = "mozart.wav"
+AUDIO_FILE = "test.wav"
+#AUDIO_FILE = "mozart.wav"
 WF = wave.open(AUDIO_FILE, 'rb')
 p = pyaudio.PyAudio()
 
@@ -29,18 +30,21 @@ stream = p.open(format=p.get_format_from_width(WF.getsampwidth()),
 
 class MulticastPingClient(DatagramProtocol):
 
-    def __init__(self):
-       self.join_flag = False
-
     def sendData(self):
-        self.data = WF.readframes(CHUNK)
         self.chunk_count = 0
+        self.data = WF.readframes(CHUNK)
+        self.payload = pickle.dumps([self.chunk_count, self.data])
 
-        while self.data != '':
+        while self.data  != '':
             print "Sent chunk_count={} , type={}".format(self.chunk_count,type(self.data)) 
-            self.transport.write(self.data, ("228.0.0.5", 8005))
-            self.data = WF.readframes(CHUNK)
+            self.transport.write(self.payload, ("228.0.0.5", 8005))
+
+            #check if data was sent
+            #
+
             self.chunk_count +=1
+            self.data = WF.readframes(CHUNK)
+            self.payload = pickle.dumps([self.chunk_count, self.data])
 
     def startProtocol(self):
         # Set the TTL=1 so multicast will NOT cross router hops:
@@ -58,12 +62,9 @@ class MulticastPingClient(DatagramProtocol):
         #print "Datagram %s received from %s" % (repr(datagram), repr(address))
         if datagram == 'Server: Ping':
             print "Joined multicast group sucessfully at 228.0.0.5 on port 8005"
-            self.join_flag = True
-            print "dataGramReceived self.join_flag={}".format(self.join_flag)
+            #send data
             self.sendData()
         
-
-
 
 reactor.listenMulticast(8005, MulticastPingClient(), listenMultiple=True)
 reactor.run()
